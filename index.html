@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>수업 AI 도우미</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232733;
+  --border: #2e3340;
+  --text: #e8eaf0;
+  --text-dim: #8b90a0;
+  --accent-history: #f0a050;
+  --accent-society: #50b0f0;
+  --accent-quiz: #a070f0;
+  --accent-source: #50d0a0;
+  --danger: #f06060;
+  --white: #ffffff;
+  --tab-height: 56px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.app-header {
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+.app-title { font-size: 17px; font-weight: 700; letter-spacing: -0.5px; }
+.app-title span { color: var(--accent-history); }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.key-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--danger);
+  transition: background 0.3s;
+  flex-shrink: 0;
+}
+.key-dot.connected { background: var(--accent-source); }
+.settings-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 18px; padding: 4px; opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.settings-btn:hover { opacity: 1; }
+
+/* ── Settings Modal ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 200;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-sheet {
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  border-top: 1px solid var(--border);
+  padding: 24px 20px 32px;
+  width: 100%;
+  max-width: 720px;
+  animation: slideUp 0.25s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.modal-desc { font-size: 12px; color: var(--text-dim); margin-bottom: 18px; line-height: 1.6; }
+.key-input-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.key-input {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-family: monospace;
+  font-size: 13px;
+  outline: none;
+  letter-spacing: 0.5px;
+}
+.key-input:focus { border-color: var(--text-dim); }
+.key-toggle {
+  width: 44px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 16px;
+}
+.btn-save {
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent-quiz);
+  color: var(--white);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 12px;
+  transition: opacity 0.15s;
+}
+.btn-save:hover { opacity: 0.85; }
+.modal-link {
+  display: block;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+.modal-link:hover { color: var(--text); }
+
+/* ── Tab Bar ── */
+.tab-bar {
+  height: var(--tab-height);
+  background: var(--surface);
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+.tab-btn {
+  flex: 1; border: none; background: none;
+  color: var(--text-dim); font-family: inherit; font-size: 13px;
+  font-weight: 500; cursor: pointer; position: relative;
+  transition: color 0.2s; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+}
+.tab-btn .tab-icon { font-size: 20px; }
+.tab-btn::after {
+  content: ''; position: absolute; bottom: 0; left: 20%; right: 20%;
+  height: 3px; border-radius: 3px 3px 0 0;
+  background: transparent; transition: background 0.2s;
+}
+.tab-btn.active { color: var(--white); font-weight: 700; }
+.tab-btn[data-tab="person"].active { color: var(--accent-history); }
+.tab-btn[data-tab="person"].active::after { background: var(--accent-history); }
+.tab-btn[data-tab="concept"].active { color: var(--accent-society); }
+.tab-btn[data-tab="concept"].active::after { background: var(--accent-society); }
+.tab-btn[data-tab="quiz"].active { color: var(--accent-quiz); }
+.tab-btn[data-tab="quiz"].active::after { background: var(--accent-quiz); }
+.tab-btn[data-tab="source"].active { color: var(--accent-source); }
+.tab-btn[data-tab="source"].active::after { background: var(--accent-source); }
+
+/* ── Content Area ── */
+.content-area {
+  height: calc(100vh - 52px - var(--tab-height));
+  overflow-y: auto;
+  padding: 20px;
+}
+.tab-content { display: none; animation: fadeUp 0.3s ease; }
+.tab-content.active { display: block; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Common Components ── */
+.section-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-dim); margin-bottom: 10px; font-weight: 500;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.chip {
+  padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim); font-size: 13px;
+  font-family: inherit; cursor: pointer; transition: all 0.15s; font-weight: 400;
+}
+.chip:hover { border-color: var(--text-dim); }
+.chip.selected { border-color: currentColor; font-weight: 600; }
+
+.btn-primary {
+  width: 100%; padding: 14px; border: none; border-radius: 12px;
+  font-family: inherit; font-size: 15px; font-weight: 700;
+  color: var(--white); cursor: pointer; transition: transform 0.1s, opacity 0.2s;
+  letter-spacing: -0.3px;
+}
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Chat Bubbles ── */
+.chat-area { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.bubble {
+  max-width: 85%; padding: 14px 18px; border-radius: 18px;
+  font-size: 14px; line-height: 1.65; word-break: keep-all;
+}
+.bubble.ai {
+  align-self: flex-start; background: var(--surface2);
+  border: 1px solid var(--border); border-bottom-left-radius: 4px;
+}
+.bubble.user { align-self: flex-end; border-bottom-right-radius: 4px; }
+.bubble .speaker { font-size: 11px; font-weight: 700; margin-bottom: 5px; letter-spacing: 0.3px; }
+
+.chat-input-row { display: flex; gap: 8px; }
+.chat-input {
+  flex: 1; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text); font-family: inherit;
+  font-size: 14px; outline: none;
+}
+.chat-input:focus { border-color: var(--text-dim); }
+.chat-input::placeholder { color: var(--text-dim); }
+.chat-send {
+  width: 48px; border: none; border-radius: 12px; font-size: 20px;
+  cursor: pointer; color: var(--white); transition: opacity 0.15s;
+}
+.chat-send:hover { opacity: 0.85; }
+.chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Tab 1: 인물 톡 ── */
+.person-chip.selected { color: var(--accent-history); border-color: var(--accent-history); background: rgba(240,160,80,0.1); }
+.person-send { background: var(--accent-history); }
+.bubble.user.person-bubble { background: var(--accent-history); color: var(--bg); }
+.bubble.ai .speaker.person-speaker { color: var(--accent-history); }
+
+/* ── Tab 2: 개념 톡 ── */
+.concept-chip.selected { color: var(--accent-society); border-color: var(--accent-society); background: rgba(80,176,240,0.1); }
+.concept-send { background: var(--accent-society); }
+.bubble.user.concept-bubble { background: var(--accent-society); color: var(--bg); }
+.bubble.ai .speaker.concept-speaker { color: var(--accent-society); }
+
+/* ── Tab 3: 깜짝 퀴즈 ── */
+.quiz-option {
+  display: block; width: 100%; text-align: left; padding: 14px 18px;
+  border-radius: 12px; border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text); font-family: inherit; font-size: 14px; cursor: pointer;
+  margin-bottom: 8px; transition: all 0.15s; line-height: 1.5;
+}
+.quiz-option:hover:not(:disabled) { border-color: var(--accent-quiz); }
+.quiz-option.correct { border-color: var(--accent-source); background: rgba(80,208,160,0.12); color: var(--accent-source); font-weight: 600; }
+.quiz-option.wrong { border-color: var(--danger); background: rgba(240,96,96,0.1); color: var(--danger); }
+.quiz-progress { display: flex; gap: 6px; margin-bottom: 18px; }
+.quiz-dot { width: 32px; height: 5px; border-radius: 3px; background: var(--border); }
+.quiz-dot.done { background: var(--accent-quiz); }
+.quiz-dot.current { background: var(--accent-quiz); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+.quiz-q-num { font-size: 12px; color: var(--accent-quiz); font-weight: 700; margin-bottom: 6px; letter-spacing: 0.5px; }
+.quiz-question {
+  font-family: 'Gowun Batang', serif; font-size: 18px; font-weight: 700;
+  line-height: 1.6; margin-bottom: 20px; word-break: keep-all;
+}
+.quiz-explain {
+  padding: 14px 18px; background: rgba(160,112,240,0.08);
+  border-left: 3px solid var(--accent-quiz); border-radius: 0 10px 10px 0;
+  margin-top: 14px; font-size: 13px; line-height: 1.7; color: var(--text-dim); display: none;
+}
+.quiz-score-box { text-align: center; padding: 32px 0; }
+.quiz-score-num { font-size: 56px; font-weight: 900; color: var(--accent-quiz); letter-spacing: -2px; }
+.quiz-score-label { font-size: 14px; color: var(--text-dim); margin-top: 6px; }
+.btn-quiz { background: var(--accent-quiz); }
+
+/* ── Tab 4: 자료 읽기 ── */
+.source-textarea {
+  width: 100%; min-height: 100px; padding: 14px 16px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+  font-family: 'Gowun Batang', serif; font-size: 14px; line-height: 1.8;
+  outline: none; resize: vertical; margin-bottom: 12px;
+}
+.source-textarea:focus { border-color: var(--accent-source); }
+.source-textarea::placeholder { color: var(--text-dim); font-family: 'Noto Sans KR', sans-serif; }
+.btn-source { background: var(--accent-source); color: var(--bg); }
+
+.step-list { display: flex; flex-direction: column; gap: 14px; }
+.step-item { display: flex; gap: 14px; align-items: flex-start; }
+.step-num {
+  min-width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0; margin-top: 2px;
+}
+.step-num.active { background: var(--accent-source); color: var(--bg); }
+.step-num.pending { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
+.step-text { font-size: 14px; line-height: 1.7; word-break: keep-all; }
+.step-text.dim { color: var(--text-dim); }
+.step-loading { display: inline-flex; gap: 4px; align-items: center; }
+
+.tag {
+  display: inline-block; padding: 3px 10px; border-radius: 6px;
+  font-size: 11px; font-weight: 600; margin-right: 6px; letter-spacing: 0.3px;
+}
+.tag-history { background: rgba(240,160,80,0.15); color: var(--accent-history); }
+.tag-society { background: rgba(80,176,240,0.15); color: var(--accent-society); }
+
+/* ── Typing indicator ── */
+.typing-dots { display: inline-flex; gap: 4px; padding: 4px 0; }
+.typing-dots span {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-dim); animation: typeDot 1.2s infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typeDot { 0%,60%,100% { opacity:0.3; transform:translateY(0); } 30% { opacity:1; transform:translateY(-4px); } }
+
+/* ── Loading Card ── */
+.loading-card { text-align: center; padding: 40px 20px; }
+.loading-card .typing-dots { justify-content: center; }
+.loading-card .loading-msg { color: var(--text-dim); font-size: 13px; margin-top: 12px; }
+
+/* ── Vote bar ── */
+.vote-bar-row { display: flex; gap: 6px; margin-top: 8px; }
+.vote-bar-item { flex: 1; text-align: center; }
+.vote-bar-label { font-size: 11px; color: var(--text-dim); margin-bottom: 3px; }
+.vote-bar-fill { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.vote-bar-fill .fill-inner { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+
+/* ── Subject toggle ── */
+.subject-toggle {
+  display: flex; background: var(--surface2); border-radius: 10px;
+  padding: 3px; margin-bottom: 14px; border: 1px solid var(--border);
+}
+.subject-toggle button {
+  flex: 1; padding: 8px; border: none; border-radius: 8px; background: none;
+  color: var(--text-dim); font-family: inherit; font-size: 13px;
+  font-weight: 500; cursor: pointer; transition: all 0.15s;
+}
+.subject-toggle button.active { background: var(--surface); color: var(--white); font-weight: 700; }
+
+/* ── Error bubble ── */
+.error-msg { color: var(--danger); font-size: 13px; }
+
+/* ── Scrollbar ── */
+.content-area::-webkit-scrollbar { width: 4px; }
+.content-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── Responsive ── */
+@media (min-width: 800px) {
+  .content-area { max-width: 720px; margin: 0 auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ Settings Modal ═══ -->
+<div class="modal-overlay" id="settings-modal" onclick="closeSettings(event)">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-title">⚙️ Groq API 설정</div>
+    <div class="modal-desc">
+      무료 API 키를 발급받아 입력하세요. 키는 이 기기의 브라우저에만 저장되며 서버로 전송되지 않습니다.
+    </div>
+    <div class="key-input-row">
+      <input type="password" class="key-input" id="key-input" placeholder="gsk_..." autocomplete="off" spellcheck="false">
+      <button class="key-toggle" id="key-toggle" onclick="toggleKeyVisibility()">👁</button>
+    </div>
+    <button class="btn-save" onclick="saveSettings()">저장하기</button>
+    <a class="modal-link" href="https://console.groq.com/keys" target="_blank" rel="noopener">
+      Groq Console에서 무료 키 발급받기 →
+    </a>
+  </div>
+</div>
+
+<!-- ═══ Header ═══ -->
+<header class="app-header">
+  <div class="app-title">수업 AI <span>도우미</span></div>
+  <div class="header-right">
+    <div class="key-dot" id="key-dot"></div>
+    <button class="settings-btn" onclick="openSettings()" title="API 설정">⚙️</button>
+  </div>
+</header>
+
+<!-- ═══ Tab Bar ═══ -->
+<nav class="tab-bar">
+  <button class="tab-btn active" data-tab="person" onclick="switchTab('person')">
+    <span class="tab-icon">👤</span> 인물 톡
+  </button>
+  <button class="tab-btn" data-tab="concept" onclick="switchTab('concept')">
+    <span class="tab-icon">💡</span> 개념 톡
+  </button>
+  <button class="tab-btn" data-tab="quiz" onclick="switchTab('quiz')">
+    <span class="tab-icon">⚡</span> 깜짝 퀴즈
+  </button>
+  <button class="tab-btn" data-tab="source" onclick="switchTab('source')">
+    <span class="tab-icon">📜</span> 자료 읽기
+  </button>
+</nav>
+
+<!-- ═══ Content ═══ -->
+<div class="content-area">
+
+  <!-- ══ TAB 1: 인물 톡 ══ -->
+  <div id="tab-person" class="tab-content active">
+    <div class="section-label">시대 선택</div>
+    <div class="chip-row" id="person-era">
+      <button class="chip person-chip selected" onclick="selectEra(this,'고려 시대')">고려 시대</button>
+      <button class="chip person-chip" onclick="selectEra(this,'조선 전기')">조선 전기</button>
+      <button class="chip person-chip" onclick="selectEra(this,'조선 후기')">조선 후기</button>
+      <button class="chip person-chip" onclick="selectEra(this,'근대')">근대</button>
+    </div>
+
+    <div class="section-label">인물 선택</div>
+    <div class="chip-row" id="person-who">
+      <button class="chip person-chip selected" onclick="selectPerson(this)">왕건</button>
+      <button class="chip person-chip" onclick="selectPerson(this)">묘청</button>
+      <button class="chip person-chip" onclick="selectPerson(this)">정중부</button>
+      <button class="chip person-chip" onclick="selectPerson(this)">만적</button>
+    </div>
+
+    <div class="card">
+      <div class="chat-area" id="person-chat">
+        <div class="bubble ai">
+          <div class="speaker person-speaker">왕건 (고려 태조)</div>
+          내가 바로 고려를 세운 왕건이오. 후삼국을 통일하고 이 나라의 기틀을 다졌지. 무엇이든 물어보시오!
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="person-input" placeholder="학생 질문을 입력하세요..."
+          onkeydown="if(event.key==='Enter'&&!event.isComposing)sendPersonMsg()">
+        <button class="chat-send person-send" id="person-send-btn" onclick="sendPersonMsg()">➤</button>
+      </div>
+    </div>
+
+    <div style="padding:10px 4px; font-size:12px; color:var(--text-dim); line-height:1.6;">
+      💡 <strong>수업 팁:</strong> AI 답변 후 "방금 AI가 말한 것 중 교과서와 다른 부분을 찾아볼까?" 하고 팩트체크 토론으로 연결하세요.
+    </div>
+  </div>
+
+  <!-- ══ TAB 2: 개념 톡 ══ -->
+  <div id="tab-concept" class="tab-content">
+    <div class="section-label">영역 선택</div>
+    <div class="chip-row" id="concept-area">
+      <button class="chip concept-chip selected" onclick="selectArea(this,'경제')">경제</button>
+      <button class="chip concept-chip" onclick="selectArea(this,'정치')">정치</button>
+      <button class="chip concept-chip" onclick="selectArea(this,'사회·문화')">사회·문화</button>
+      <button class="chip concept-chip" onclick="selectArea(this,'지리')">지리</button>
+    </div>
+
+    <div class="section-label">개념 선택</div>
+    <div class="chip-row" id="concept-topic">
+      <button class="chip concept-chip selected" onclick="selectConcept(this)">인플레이션</button>
+      <button class="chip concept-chip" onclick="selectConcept(this)">수요와 공급</button>
+      <button class="chip concept-chip" onclick="selectConcept(this)">환율</button>
+      <button class="chip concept-chip" onclick="selectConcept(this)">금리</button>
+    </div>
+
+    <div class="card">
+      <div class="chat-area" id="concept-chat">
+        <div class="bubble ai">
+          <div class="speaker concept-speaker">개념 도우미 — 인플레이션</div>
+          인플레이션은 물가가 지속적으로 오르는 현상이에요. 쉽게 말해, 같은 돈으로 살 수 있는 물건이 줄어드는 거죠.<br><br>
+          🤔 <strong>만약에...</strong> 내일 갑자기 우리나라 물가가 2배로 뛴다면, 여러분의 용돈으로 무엇을 할 수 있을까요?
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="concept-input" placeholder="질문이나 '만약에' 상황을 입력하세요..."
+          onkeydown="if(event.key==='Enter'&&!event.isComposing)sendConceptMsg()">
+        <button class="chat-send concept-send" id="concept-send-btn" onclick="sendConceptMsg()">➤</button>
+      </div>
+    </div>
+
+    <div style="padding:10px 4px; font-size:12px; color:var(--text-dim); line-height:1.6;">
+      💡 <strong>수업 팁:</strong> "만약에~" 시뮬레이션 답변을 화면에 띄운 뒤, 학생들에게 "정말 그렇게 될까?" 하고 반론을 유도하세요.
+    </div>
+  </div>
+
+  <!-- ══ TAB 3: 깜짝 퀴즈 ══ -->
+  <div id="tab-quiz" class="tab-content">
+    <div class="subject-toggle" id="quiz-subject-toggle">
+      <button class="active" onclick="toggleQuizSubject(this,'history')">📖 역사</button>
+      <button onclick="toggleQuizSubject(this,'society')">🌏 사회</button>
+    </div>
+
+    <div id="quiz-setup">
+      <div class="section-label">단원 / 키워드</div>
+      <div class="chip-row" id="quiz-unit">
+        <button class="chip selected" onclick="selectChip(this,'quiz-unit','chip')" style="border-color:var(--accent-quiz);color:var(--accent-quiz);background:rgba(160,112,240,0.1)">고려의 건국</button>
+        <button class="chip" onclick="selectChip(this,'quiz-unit','chip')">무신 정변</button>
+        <button class="chip" onclick="selectChip(this,'quiz-unit','chip')">몽골 침입</button>
+      </div>
+
+      <div class="section-label">문제 수</div>
+      <div class="chip-row" id="quiz-count">
+        <button class="chip selected" onclick="selectChip(this,'quiz-count','chip')" style="border-color:var(--accent-quiz);color:var(--accent-quiz);background:rgba(160,112,240,0.1)">3문제</button>
+        <button class="chip" onclick="selectChip(this,'quiz-count','chip')">5문제</button>
+      </div>
+
+      <button class="btn-primary btn-quiz" onclick="startQuiz()">⚡ 퀴즈 생성</button>
+    </div>
+
+    <div id="quiz-play" style="display:none">
+      <div class="quiz-progress" id="quiz-progress"></div>
+      <div id="quiz-body"></div>
+    </div>
+
+    <div id="quiz-result" style="display:none">
+      <div class="card">
+        <div class="quiz-score-box">
+          <div class="quiz-score-num" id="quiz-score-num">—</div>
+          <div class="quiz-score-label" id="quiz-score-label">정답률</div>
+        </div>
+      </div>
+      <button class="btn-primary btn-quiz" onclick="resetQuiz()">🔄 새 퀴즈 만들기</button>
+    </div>
+  </div>
+
+  <!-- ══ TAB 4: 자료 읽기 ══ -->
+  <div id="tab-source" class="tab-content">
+    <div class="subject-toggle" id="source-subject-toggle">
+      <button class="active" onclick="toggleSourceSubject(this,'history')">📖 역사 (사료)</button>
+      <button onclick="toggleSourceSubject(this,'society')">🌏 사회 (자료)</button>
+    </div>
+
+    <div id="source-input-area">
+      <div class="card">
+        <div class="section-label" id="source-label">사료 입력</div>
+        <textarea class="source-textarea" id="source-text" placeholder="교과서 속 사료를 붙여넣으세요..."></textarea>
+        <button class="btn-primary btn-source" id="source-analyze-btn" onclick="analyzeSource()">🔍 분석 시작</button>
+      </div>
+    </div>
+
+    <div id="source-result" style="display:none">
+      <div class="card">
+        <div style="margin-bottom:14px;">
+          <span class="tag" id="source-tag">역사 사료</span>
+          <span style="font-size:13px; color:var(--text-dim);" id="source-excerpt"></span>
+        </div>
+        <div class="step-list" id="source-steps"></div>
+      </div>
+      <button class="btn-primary btn-source" onclick="resetSource()">📜 다른 자료 분석하기</button>
+    </div>
+  </div>
+
+</div><!-- /content-area -->
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const MODEL    = 'llama-3.3-70b-versatile';
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let personHistory  = [];
+let conceptHistory = [];
+let personBusy     = false;
+let conceptBusy    = false;
+let aiQuizData     = [];
+let quizCurrent    = 0;
+let quizCorrect    = 0;
+let sourceSubject  = 'history';
+
+// ═══════════════════════════════════════════════
+//  API KEY
+// ═══════════════════════════════════════════════
+function getKey()   { return (localStorage.getItem('groq_key') || '').trim(); }
+function saveKey(k) { localStorage.setItem('groq_key', k.trim()); updateKeyDot(); }
+
+function updateKeyDot() {
+  const dot = document.getElementById('key-dot');
+  if (getKey()) dot.classList.add('connected');
+  else          dot.classList.remove('connected');
+}
+
+function openSettings() {
+  document.getElementById('key-input').value = getKey();
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeSettings(e) {
+  if (e.target === document.getElementById('settings-modal'))
+    document.getElementById('settings-modal').classList.remove('open');
+}
+function toggleKeyVisibility() {
+  const inp = document.getElementById('key-input');
+  const btn = document.getElementById('key-toggle');
+  if (inp.type === 'password') { inp.type = 'text';     btn.textContent = '🙈'; }
+  else                         { inp.type = 'password'; btn.textContent = '👁'; }
+}
+function saveSettings() {
+  const k = document.getElementById('key-input').value.trim();
+  if (!k) { alert('API 키를 입력해주세요.'); return; }
+  saveKey(k);
+  document.getElementById('settings-modal').classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════
+//  GROQ API
+// ═══════════════════════════════════════════════
+async function callGroq(messages, { json = false, stream = false, maxTokens = 1500, temp = 0.85 } = {}) {
+  const key = getKey();
+  if (!key) { openSettings(); throw new Error('__nokey__'); }
+
+  const body = {
+    model: MODEL, messages, max_tokens: maxTokens,
+    temperature: temp, stream,
+    ...(json && { response_format: { type: 'json_object' } })
+  };
+
+  const res = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `오류 ${res.status}`);
+  }
+
+  if (stream) return res;
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
+// Stream SSE into a DOM element; returns full text
+async function streamInto(response, el) {
+  const reader  = response.body.getReader();
+  const decoder = new TextDecoder();
+  let full = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    for (const line of decoder.decode(value).split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      const raw = line.slice(6).trim();
+      if (raw === '[DONE]') continue;
+      try {
+        const delta = JSON.parse(raw).choices[0]?.delta?.content || '';
+        if (delta) { full += delta; el.innerHTML = md(full); }
+      } catch { /* partial JSON chunk */ }
+    }
+  }
+  return full;
+}
+
+function parseJsonResponse(text) {
+  const cleaned = text.replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'').trim();
+  return JSON.parse(cleaned);
+}
+
+// ═══════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function md(text) {
+  return escHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^[-•] (.+)/gm, '• $1')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+}
+
+function scrollChat(chat) {
+  chat.closest('.card').scrollTop = chat.closest('.card').scrollHeight;
+  chat.parentElement.scrollTop    = chat.parentElement.scrollHeight;
+}
+
+function selectChip(el, groupId, className) {
+  document.querySelectorAll(`#${groupId} .${className}`).forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════
+//  TAB 1: 인물 톡
+// ═══════════════════════════════════════════════
+const ERA_PERSONS = {
+  '고려 시대':  ['왕건', '묘청', '정중부', '만적'],
+  '조선 전기':  ['세종대왕', '이순신', '이황', '이이'],
+  '조선 후기':  ['정약용', '홍경래', '전봉준', '흥선대원군'],
+  '근대':       ['안중근', '김구', '유관순', '신채호']
+};
+
+const PERSON_INTROS = {
+  '왕건':       '내가 바로 고려를 세운 왕건이오. 후삼국을 통일하고 이 나라의 기틀을 다졌지. 무엇이든 물어보시오!',
+  '묘청':       '나는 묘청이오. 서경 천도를 주장하며 금나라에 맞서 자주적인 나라를 꿈꿨소.',
+  '정중부':     '나는 무신 정중부요. 문신들의 횡포에 더 이상 참을 수 없었소.',
+  '만적':       '나는 만적이오. 왕후장상의 씨가 따로 있겠느냐! 우리의 이야기를 들어보겠소?',
+  '세종대왕':   '나는 세종이오. 백성을 사랑하는 마음으로 한글을 창제하였소. 무엇이든 물어보시오.',
+  '이순신':     '나는 이순신이오. 아직 신에게는 열두 척의 배가 있나이다. 무엇이 궁금하시오?',
+  '이황':       '나는 퇴계 이황이오. 성리학을 깊이 연구하며 후학을 가르치는 것이 내 사명이오.',
+  '이이':       '나는 율곡 이이요. 개혁 없이는 나라가 쇠퇴한다고 굳게 믿었소.',
+  '정약용':     '나는 다산 정약용이오. 실학을 통해 백성이 잘 사는 나라를 꿈꿨소.',
+  '홍경래':     '나는 홍경래요. 서북인에 대한 차별에 맞서 떨쳐 일어났소.',
+  '전봉준':     '나는 전봉준이오. 탐관오리를 몰아내고 백성이 주인 되는 세상을 원했소.',
+  '흥선대원군': '나는 흥선대원군이오. 외세에 맞서 조선을 지키려 했소.',
+  '안중근':     '나는 안중근이오. 나라의 독립을 위해 모든 것을 바쳤습니다.',
+  '김구':       '나는 백범 김구요. 진정한 독립을 위해 평생을 바쳤습니다.',
+  '유관순':     '나는 유관순이에요. 3·1 운동에서 독립의 함성을 외쳤죠.',
+  '신채호':     '나는 단재 신채호요. 역사를 잊은 민족에게 미래는 없소.'
+};
+
+function selectEra(el, era) {
+  selectChip(el, 'person-era', 'person-chip');
+  const persons = ERA_PERSONS[era] || ERA_PERSONS['고려 시대'];
+  const row = document.getElementById('person-who');
+  row.innerHTML = persons.map((p, i) =>
+    `<button class="chip person-chip${i === 0 ? ' selected' : ''}" onclick="selectPerson(this)">${escHtml(p)}</button>`
+  ).join('');
+  startPersonChat();
+}
+
+function selectPerson(el) {
+  selectChip(el, 'person-who', 'person-chip');
+  startPersonChat();
+}
+
+function getPersonSystemPrompt() {
+  const who = document.querySelector('#person-who .selected')?.textContent || '왕건';
+  const era = document.querySelector('#person-era .selected')?.textContent || '';
+  return `당신은 한국사 교육용 AI 역할극을 수행합니다. 지금부터 "${who}"(${era}) 역할을 맡아주세요.
+1인칭으로, 중학생이 이해할 수 있는 언어로 대화하되 시대적 감성을 살려주세요.
+역사적 사실에 충실히 답변하고, 확실히 모르는 것은 모른다고 솔직하게 말하세요.
+답변은 3~5문장으로 간결하게 마무리하고, 마지막에는 학생의 생각을 유도하는 반문을 한 가지 넣어주세요.
+현대 사건이나 미래에 대한 질문은 "나는 그런 것을 알 수 없소" 식으로 시대 인물의 관점에서 답하세요.
+반드시 한국어로만 답변하세요.`;
+}
+
+function startPersonChat() {
+  const who = document.querySelector('#person-who .selected')?.textContent || '왕건';
+  const intro = PERSON_INTROS[who] || '안녕하시오! 무엇이든 물어보시오!';
+  personHistory = [{ role: 'system', content: getPersonSystemPrompt() }];
+  const chat = document.getElementById('person-chat');
+  chat.innerHTML = `<div class="bubble ai"><div class="speaker person-speaker">${escHtml(who)}</div>${escHtml(intro)}</div>`;
+}
+
+async function sendPersonMsg() {
+  if (personBusy) return;
+  const input = document.getElementById('person-input');
+  const msg   = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  const who  = document.querySelector('#person-who .selected')?.textContent || '왕건';
+  const chat = document.getElementById('person-chat');
+  const btn  = document.getElementById('person-send-btn');
+
+  chat.innerHTML += `<div class="bubble user person-bubble">${escHtml(msg)}</div>`;
+
+  const bubbleId = 'p-bubble-' + Date.now();
+  chat.innerHTML += `<div class="bubble ai" id="${bubbleId}">
+    <div class="speaker person-speaker">${escHtml(who)}</div>
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+  </div>`;
+  scrollChat(chat);
+
+  personHistory.push({ role: 'user', content: msg });
+  personBusy = true; btn.disabled = true;
+
+  const bubble = document.getElementById(bubbleId);
+  const contentEl = document.createElement('div');
+
+  try {
+    const res  = await callGroq(personHistory, { stream: true, temp: 0.9, maxTokens: 600 });
+    bubble.innerHTML = `<div class="speaker person-speaker">${escHtml(who)}</div>`;
+    bubble.appendChild(contentEl);
+    const full = await streamInto(res, contentEl);
+    personHistory.push({ role: 'assistant', content: full });
+    if (personHistory.length > 21) personHistory.splice(1, 2);
+  } catch (e) {
+    if (e.message === '__nokey__') { bubble.remove(); }
+    else { bubble.innerHTML = `<div class="speaker person-speaker">${escHtml(who)}</div><span class="error-msg">오류: ${escHtml(e.message)}</span>`; }
+  } finally {
+    personBusy = false; btn.disabled = false;
+    scrollChat(chat);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  TAB 2: 개념 톡
+// ═══════════════════════════════════════════════
+const AREA_CONCEPTS = {
+  '경제':    ['인플레이션', '수요와 공급', '환율', '금리'],
+  '정치':    ['민주주의', '삼권분립', '선거제도', '지방자치'],
+  '사회·문화': ['다문화사회', '청소년 인권', '미디어 리터러시'],
+  '지리':    ['기후변화', '도시화', '인구 문제', '자원 분포']
+};
+
+function selectArea(el, area) {
+  selectChip(el, 'concept-area', 'concept-chip');
+  const concepts = AREA_CONCEPTS[area] || AREA_CONCEPTS['경제'];
+  const row = document.getElementById('concept-topic');
+  row.innerHTML = concepts.map((c, i) =>
+    `<button class="chip concept-chip${i === 0 ? ' selected' : ''}" onclick="selectConcept(this)">${escHtml(c)}</button>`
+  ).join('');
+  startConceptChat();
+}
+
+function selectConcept(el) {
+  selectChip(el, 'concept-topic', 'concept-chip');
+  startConceptChat();
+}
+
+function getConceptSystemPrompt() {
+  const topic = document.querySelector('#concept-topic .selected')?.textContent || '';
+  const area  = document.querySelector('#concept-area .selected')?.textContent || '';
+  return `당신은 한국 중학교 사회 교과 AI 튜터입니다.
+지금부터 "${topic}"(${area} 영역) 개념을 가르쳐주세요.
+- 중학생이 이해할 수 있는 쉬운 언어 사용
+- 실생활 예시와 비유를 적극 활용
+- "만약에~" 가상 시나리오로 흥미 유발
+- 비판적 사고를 자극하는 반문으로 마무리
+- 답변은 5~8문장 분량
+- 반드시 한국어로만 답변하세요.`;
+}
+
+function getConceptIntro() {
+  const topic = document.querySelector('#concept-topic .selected')?.textContent || '인플레이션';
+  const INTROS = {
+    '인플레이션':   '인플레이션은 물가가 지속적으로 오르는 현상이에요. 같은 돈으로 살 수 있는 물건이 줄어드는 거죠.<br><br>🤔 <strong>만약에...</strong> 내일 갑자기 우리나라 물가가 2배로 뛴다면, 여러분의 용돈으로 무엇을 할 수 있을까요?',
+    '수요와 공급':  '수요와 공급은 경제의 가장 기본 원리예요. 사려는 사람이 많으면 가격이 오르고, 물건이 넘치면 내려가죠.<br><br>🤔 <strong>만약에...</strong> 학교 앞 분식집이 갑자기 5곳으로 늘어난다면 떡볶이 가격은 어떻게 될까요?',
+    '환율':        '환율은 우리 돈과 다른 나라 돈의 교환 비율이에요.<br><br>🤔 <strong>만약에...</strong> 환율이 갑자기 1달러=2,000원이 된다면 해외여행 비용은 어떻게 될까요?',
+    '금리':        '금리는 돈을 빌릴 때 내는 이자율이에요. 금리가 오르면 저축하기 좋고, 대출받기 부담스러워지죠.<br><br>🤔 <strong>만약에...</strong> 내일부터 은행 금리가 10%가 된다면, 여러분 부모님의 대출이나 저축은 어떻게 달라질까요?'
+  };
+  return INTROS[topic] || `${escHtml(topic)} 개념에 대해 배워봐요! 무엇이 궁금한가요?`;
+}
+
+function startConceptChat() {
+  const topic = document.querySelector('#concept-topic .selected')?.textContent || '';
+  conceptHistory = [{ role: 'system', content: getConceptSystemPrompt() }];
+  const chat  = document.getElementById('concept-chat');
+  const intro = getConceptIntro();
+  chat.innerHTML = `<div class="bubble ai"><div class="speaker concept-speaker">개념 도우미 — ${escHtml(topic)}</div>${intro}</div>`;
+}
+
+async function sendConceptMsg() {
+  if (conceptBusy) return;
+  const input = document.getElementById('concept-input');
+  const msg   = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  const topic = document.querySelector('#concept-topic .selected')?.textContent || '';
+  const chat  = document.getElementById('concept-chat');
+  const btn   = document.getElementById('concept-send-btn');
+
+  chat.innerHTML += `<div class="bubble user concept-bubble">${escHtml(msg)}</div>`;
+
+  const bubbleId = 'c-bubble-' + Date.now();
+  chat.innerHTML += `<div class="bubble ai" id="${bubbleId}">
+    <div class="speaker concept-speaker">개념 도우미 — ${escHtml(topic)}</div>
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+  </div>`;
+  scrollChat(chat);
+
+  conceptHistory.push({ role: 'user', content: msg });
+  conceptBusy = true; btn.disabled = true;
+
+  const bubble    = document.getElementById(bubbleId);
+  const contentEl = document.createElement('div');
+
+  try {
+    const res  = await callGroq(conceptHistory, { stream: true, temp: 0.8, maxTokens: 700 });
+    bubble.innerHTML = `<div class="speaker concept-speaker">개념 도우미 — ${escHtml(topic)}</div>`;
+    bubble.appendChild(contentEl);
+    const full = await streamInto(res, contentEl);
+    conceptHistory.push({ role: 'assistant', content: full });
+    if (conceptHistory.length > 21) conceptHistory.splice(1, 2);
+  } catch (e) {
+    if (e.message === '__nokey__') { bubble.remove(); }
+    else { bubble.innerHTML = `<div class="speaker concept-speaker">개념 도우미</div><span class="error-msg">오류: ${escHtml(e.message)}</span>`; }
+  } finally {
+    conceptBusy = false; btn.disabled = false;
+    scrollChat(chat);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  TAB 3: 깜짝 퀴즈
+// ═══════════════════════════════════════════════
+function toggleQuizSubject(btn, subject) {
+  document.querySelectorAll('#quiz-subject-toggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const row = document.getElementById('quiz-unit');
+  if (subject === 'society') {
+    row.innerHTML = `
+      <button class="chip selected" onclick="selectChip(this,'quiz-unit','chip')" style="border-color:var(--accent-quiz);color:var(--accent-quiz);background:rgba(160,112,240,0.1)">경제생활</button>
+      <button class="chip" onclick="selectChip(this,'quiz-unit','chip')">정치 과정</button>
+      <button class="chip" onclick="selectChip(this,'quiz-unit','chip')">인권과 법</button>`;
+  } else {
+    row.innerHTML = `
+      <button class="chip selected" onclick="selectChip(this,'quiz-unit','chip')" style="border-color:var(--accent-quiz);color:var(--accent-quiz);background:rgba(160,112,240,0.1)">고려의 건국</button>
+      <button class="chip" onclick="selectChip(this,'quiz-unit','chip')">무신 정변</button>
+      <button class="chip" onclick="selectChip(this,'quiz-unit','chip')">몽골 침입</button>`;
+  }
+}
+
+async function startQuiz() {
+  quizCurrent = 0; quizCorrect = 0; aiQuizData = [];
+
+  const unit     = document.querySelector('#quiz-unit .selected')?.textContent || '';
+  const countTxt = document.querySelector('#quiz-count .selected')?.textContent || '3문제';
+  const count    = parseInt(countTxt) || 3;
+  const isHistory = document.querySelector('#quiz-subject-toggle .active')?.textContent?.includes('역사');
+  const subjectLabel = isHistory ? '역사' : '사회';
+
+  document.getElementById('quiz-setup').style.display  = 'none';
+  document.getElementById('quiz-result').style.display = 'none';
+  document.getElementById('quiz-play').style.display   = 'block';
+  document.getElementById('quiz-progress').innerHTML   = '';
+  document.getElementById('quiz-body').innerHTML =
+    `<div class="card loading-card">
+       <div class="typing-dots"><span></span><span></span><span></span></div>
+       <div class="loading-msg">AI가 퀴즈를 생성하는 중…</div>
+     </div>`;
+
+  const prompt = `당신은 한국 중학교 ${subjectLabel} 교사입니다.
+다음 주제에 대한 4지선다 객관식 퀴즈를 ${count}개 출제해주세요.
+주제: ${unit}
+
+반드시 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
+{"quiz":[{"q":"문제 (완전한 문장)","opts":["① 보기1","② 보기2","③ 보기3","④ 보기4"],"answer":0,"explain":"해설 2~3문장"}]}
+
+answer는 0(①)~3(④) 사이의 정수입니다.
+학생들이 실제로 헷갈릴 만한 오답 보기를 포함해주세요.`;
+
+  try {
+    const content = await callGroq(
+      [{ role: 'user', content: prompt }],
+      { json: true, maxTokens: 2500, temp: 0.7 }
+    );
+    const parsed = parseJsonResponse(content);
+    aiQuizData = Array.isArray(parsed) ? parsed : (parsed.quiz || []);
+    if (!aiQuizData.length) throw new Error('퀴즈 생성 실패 (빈 응답)');
+    renderQuiz();
+  } catch (e) {
+    if (e.message === '__nokey__') { resetQuiz(); return; }
+    document.getElementById('quiz-body').innerHTML =
+      `<div class="card" style="text-align:center;padding:30px;">
+         <div class="error-msg" style="margin-bottom:12px;">퀴즈 생성에 실패했습니다.</div>
+         <div style="color:var(--text-dim);font-size:12px;">${escHtml(e.message)}</div>
+         <button class="btn-primary btn-quiz" style="margin-top:16px;" onclick="resetQuiz()">돌아가기</button>
+       </div>`;
+  }
+}
+
+function renderQuiz() {
+  if (quizCurrent >= aiQuizData.length) { showQuizResult(); return; }
+  const q = aiQuizData[quizCurrent];
+
+  let progressHTML = '';
+  for (let i = 0; i < aiQuizData.length; i++) {
+    const cls = i < quizCurrent ? 'done' : i === quizCurrent ? 'current' : '';
+    progressHTML += `<div class="quiz-dot ${cls}"></div>`;
+  }
+  document.getElementById('quiz-progress').innerHTML = progressHTML;
+
+  const optsHTML = (q.opts || []).map((o, i) =>
+    `<button class="quiz-option" onclick="answerQuiz(${i},${q.answer},this)">${md(String(o))}</button>`
+  ).join('');
+
+  document.getElementById('quiz-body').innerHTML = `
+    <div class="card">
+      <div class="quiz-q-num">Q${quizCurrent + 1} / ${aiQuizData.length}</div>
+      <div class="quiz-question">${md(q.q || '')}</div>
+      <div id="quiz-opts">${optsHTML}</div>
+      <div class="quiz-explain" id="quiz-explain">${md(q.explain || '')}</div>
+      <div id="quiz-vote" style="display:none; margin-top:14px;">
+        <div class="section-label">👋 학생 손들기 현황</div>
+        <div class="vote-bar-row" id="vote-bars"></div>
+      </div>
+    </div>`;
+}
+
+function answerQuiz(selected, correct, btn) {
+  const opts = document.querySelectorAll('#quiz-opts .quiz-option');
+  opts.forEach((o, i) => {
+    o.disabled = true;
+    o.style.cursor = 'default';
+    if (i === correct)                      o.classList.add('correct');
+    if (i === selected && selected !== correct) o.classList.add('wrong');
+  });
+  if (selected === correct) quizCorrect++;
+  document.getElementById('quiz-explain').style.display = 'block';
+
+  // Simulated vote bars weighted toward correct answer
+  const voteDiv = document.getElementById('quiz-vote');
+  voteDiv.style.display = 'block';
+  const total = 28;
+  let votes = opts.length ? Array.from({ length: opts.length }, () => Math.floor(Math.random() * 4 + 1)) : [3,18,5,2];
+  votes[correct] = Math.floor(total * 0.6 + Math.random() * total * 0.15);
+  const max = Math.max(...votes);
+  document.getElementById('vote-bars').innerHTML = votes.map((v, i) => `
+    <div class="vote-bar-item">
+      <div class="vote-bar-label">${i+1}번: ${v}명</div>
+      <div class="vote-bar-fill"><div class="fill-inner" style="width:${(v/max)*100}%;background:${i===correct?'var(--accent-source)':'var(--danger)'}"></div></div>
+    </div>`).join('');
+
+  setTimeout(() => { quizCurrent++; renderQuiz(); }, 4000);
+}
+
+function showQuizResult() {
+  document.getElementById('quiz-play').style.display   = 'none';
+  document.getElementById('quiz-result').style.display = 'block';
+  const pct = Math.round((quizCorrect / aiQuizData.length) * 100);
+  document.getElementById('quiz-score-num').textContent   = pct + '%';
+  document.getElementById('quiz-score-label').textContent = `${quizCorrect}/${aiQuizData.length} 정답`;
+}
+
+function resetQuiz() {
+  document.getElementById('quiz-setup').style.display  = 'block';
+  document.getElementById('quiz-result').style.display = 'none';
+  document.getElementById('quiz-play').style.display   = 'none';
+}
+
+// ═══════════════════════════════════════════════
+//  TAB 4: 자료 읽기
+// ═══════════════════════════════════════════════
+function toggleSourceSubject(btn, subject) {
+  sourceSubject = subject;
+  document.querySelectorAll('#source-subject-toggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const label = document.getElementById('source-label');
+  const ta    = document.getElementById('source-text');
+  if (subject === 'society') {
+    label.textContent   = '자료 입력';
+    ta.placeholder      = '교과서 속 자료(통계, 기사, 도표 설명 등)를 붙여넣으세요...';
+  } else {
+    label.textContent   = '사료 입력';
+    ta.placeholder      = '교과서 속 사료를 붙여넣으세요...';
+  }
+}
+
+const SOURCE_STEPS = {
+  history: ['출처 파악', '시대 배경', '핵심 주장', '교차 검증', '현대적 의미'],
+  society: ['현상 파악', '원인 분석', '영향 예측', '다른 관점', '해결 방안']
+};
+
+async function analyzeSource() {
+  const text = document.getElementById('source-text').value.trim();
+  if (!text) { alert('자료를 입력해주세요.'); return; }
+
+  const btn      = document.getElementById('source-analyze-btn');
+  const steps    = SOURCE_STEPS[sourceSubject];
+  const isHistory = sourceSubject === 'history';
+  const srcType  = isHistory ? '역사 사료' : '사회 자료';
+  const subLabel = isHistory ? '역사' : '사회';
+
+  document.getElementById('source-input-area').style.display = 'none';
+  document.getElementById('source-result').style.display     = 'block';
+
+  const tagEl     = document.getElementById('source-tag');
+  const excerptEl = document.getElementById('source-excerpt');
+  tagEl.className    = isHistory ? 'tag tag-history' : 'tag tag-society';
+  tagEl.textContent  = srcType;
+  excerptEl.textContent = '"' + text.slice(0, 30) + (text.length > 30 ? '..."' : '"');
+
+  // Show loading placeholders
+  const stepsEl = document.getElementById('source-steps');
+  stepsEl.innerHTML = steps.map((s, i) => `
+    <div class="step-item">
+      <div class="step-num pending">${i + 1}</div>
+      <div class="step-text dim" id="step-content-${i}">
+        <strong>${escHtml(s)}:</strong>
+        <span class="step-loading"><span class="typing-dots"><span></span><span></span><span></span></span> 분석 중…</span>
+      </div>
+    </div>`).join('');
+
+  const prompt = `당신은 한국 중학교 ${subLabel} 교사입니다.
+학생이 제출한 다음 ${srcType}를 분석해주세요.
+
+내용:
+"""
+${text}
+"""
+
+다음 JSON 형식으로 5단계 분석 결과를 반환하세요 (다른 텍스트 없이):
+{"steps":[
+  {"title":"${steps[0]}","content":"2~3문장의 구체적인 분석 (학생 질문 포함)"},
+  {"title":"${steps[1]}","content":"..."},
+  {"title":"${steps[2]}","content":"..."},
+  {"title":"${steps[3]}","content":"..."},
+  {"title":"${steps[4]}","content":"..."}
+]}
+
+각 단계마다 학생들이 생각해볼 수 있는 질문을 한 가지씩 포함해주세요.`;
+
+  try {
+    const content = await callGroq(
+      [{ role: 'user', content: prompt }],
+      { json: true, maxTokens: 2000, temp: 0.7 }
+    );
+    const parsed    = parseJsonResponse(content);
+    const resultSteps = parsed.steps || [];
+
+    stepsEl.innerHTML = resultSteps.map((s, i) => `
+      <div class="step-item">
+        <div class="step-num active">${i + 1}</div>
+        <div class="step-text"><strong>${escHtml(s.title)}:</strong><br>${md(s.content || '')}</div>
+      </div>`).join('');
+  } catch (e) {
+    if (e.message === '__nokey__') { resetSource(); return; }
+    stepsEl.innerHTML = `<div class="error-msg">분석 중 오류가 발생했습니다: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function resetSource() {
+  document.getElementById('source-input-area').style.display = 'block';
+  document.getElementById('source-result').style.display     = 'none';
+  document.getElementById('source-text').value = '';
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+(function init() {
+  updateKeyDot();
+  if (!getKey()) {
+    // Show API key nudge on first visit
+    setTimeout(openSettings, 600);
+  }
+})();
+</script>
+</body>
+</html>
