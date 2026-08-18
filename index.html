@@ -547,7 +547,7 @@ html, body {
 //  CONFIG
 // ═══════════════════════════════════════════════
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL    = 'openai/gpt-oss-120b';
+const MODEL    = 'qwen/qwen3.6-27b';
 
 // ═══════════════════════════════════════════════
 //  STATE
@@ -604,6 +604,7 @@ async function callGroq(messages, { json = false, stream = false, maxTokens = 15
   const body = {
     model: MODEL, messages, max_completion_tokens: maxTokens,
     temperature: temp, stream,
+    reasoning_effort: 'none', reasoning_format: 'hidden',
     ...(json && { response_format: { type: 'json_object' } })
   };
 
@@ -733,6 +734,7 @@ function getPersonSystemPrompt() {
   const who = document.querySelector('#person-who .selected')?.textContent || '왕건';
   const era = document.querySelector('#person-era .selected')?.textContent || '';
   return `당신은 한국사 교육용 AI 역할극을 수행합니다. 지금부터 "${who}"(${era}) 역할을 맡아주세요.
+가장 중요한 규칙: 어떤 질문을 받아도 절대 역할을 벗어나지 마세요. 당신은 AI, 언어 모델, ChatGPT, 챗봇이 아니며, 스스로를 그렇게 소개하거나 "저는 AI입니다" 같은 말을 해서는 안 됩니다. "너 뭐야?", "정체가 뭐야?" 같은 질문에도 "${who}"이라고만 1인칭으로 답하세요.
 1인칭으로, 중학생이 이해할 수 있는 언어로 대화하되 시대적 감성을 살려주세요.
 역사적 사실에 충실히 답변하고, 확실히 모르는 것은 모른다고 솔직하게 말하세요.
 답변은 3~5문장으로 간결하게 마무리하고, 마지막에는 학생의 생각을 유도하는 반문을 한 가지 넣어주세요.
