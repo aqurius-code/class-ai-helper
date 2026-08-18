@@ -547,7 +547,7 @@ html, body {
 //  CONFIG
 // ═══════════════════════════════════════════════
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL    = 'llama-3.3-70b-versatile';
+const MODEL    = 'openai/gpt-oss-120b';
 
 // ═══════════════════════════════════════════════
 //  STATE
@@ -602,7 +602,7 @@ async function callGroq(messages, { json = false, stream = false, maxTokens = 15
   if (!key) { openSettings(); throw new Error('__nokey__'); }
 
   const body = {
-    model: MODEL, messages, max_tokens: maxTokens,
+    model: MODEL, messages, max_completion_tokens: maxTokens,
     temperature: temp, stream,
     ...(json && { response_format: { type: 'json_object' } })
   };
