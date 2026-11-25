@@ -511,6 +511,15 @@ html, body {
 
 </div><!-- /content-area -->
 
+<dialog id="demo-access" aria-labelledby="demo-access-title">
+  <form method="dialog">
+    <h2 id="demo-access-title">발표용 AI 연결</h2>
+    <label>발표용 비밀번호 <input type="password" autocomplete="off" required></label>
+    <button value="connect">연결</button>
+    <button value="cancel" formnovalidate>취소</button>
+  </form>
+</dialog>
+
 <script>
 // ═══════════════════════════════════════════════
 //  STATE
@@ -527,19 +536,43 @@ let sourceSubject  = 'history';
 // ═══════════════════════════════════════════════
 //  OPENAI
 // ═══════════════════════════════════════════════
+const hostedDemo = location.protocol === 'https:' && location.origin !== 'https://aqurius-code.github.io';
+let demoPassword = '';
+let demoPrompt;
+
+function askDemoPassword() {
+  if (demoPrompt) return demoPrompt;
+  const dialog = document.getElementById('demo-access');
+  const input = dialog.querySelector('input');
+  dialog.returnValue = '';
+  demoPrompt = new Promise(resolve => {
+    dialog.addEventListener('close', () => {
+      demoPassword = dialog.returnValue === 'connect' ? input.value : '';
+      input.value = '';
+      demoPrompt = undefined;
+      resolve(demoPassword);
+    }, {once: true});
+  });
+  dialog.showModal();
+  return demoPrompt;
+}
+
 async function callOpenAI(messages, { json = false, stream = false, maxTokens = 1500, temp = 0.85 } = {}) {
   const apiUrl = location.origin === 'https://aqurius-code.github.io'
     ? 'http://127.0.0.1:8787/api/chat'
     : '/api/chat';
+  const password = hostedDemo ? demoPassword || await askDemoPassword() : '';
+  if (hostedDemo && !password) throw new Error('발표용 비밀번호를 입력하세요.');
   const res = await fetch(apiUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(hostedDemo && { 'X-Demo-Password': password }) },
     body: JSON.stringify({ messages, json, stream, maxTokens, temp })
   }).catch(() => {
     throw new Error('바탕화면의 ‘수업 AI 도우미 - 로컬 실행’을 열고 다시 시도하세요.');
   });
 
   if (!res.ok) {
+    if (hostedDemo && res.status === 401) demoPassword = '';
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error?.message || `오류 ${res.status}`);
   }
@@ -986,8 +1019,8 @@ sourceText.addEventListener('paste', event => {
   if (!item) return;
   event.preventDefault();
   const image = item.getAsFile();
-  if (!image || !['image/png', 'image/jpeg', 'image/webp'].includes(image.type) || image.size > 5 * 1024 * 1024) {
-    sourceImageStatus.textContent = '5MB 이하의 PNG, JPEG 또는 WebP 이미지를 붙여넣으세요.';
+  if (!image || !['image/png', 'image/jpeg', 'image/webp'].includes(image.type) || image.size > (hostedDemo ? 3 : 5) * 1024 * 1024) {
+    sourceImageStatus.textContent = `${hostedDemo ? 3 : 5}MB 이하의 PNG, JPEG 또는 WebP 이미지를 붙여넣으세요.`;
     return;
   }
   clearSourceImage();

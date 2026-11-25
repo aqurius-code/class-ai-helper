@@ -11,3 +11,14 @@ powershell -NoProfile -ExecutionPolicy RemoteSigned -File .\start-local.ps1 -Cho
 시연이 끝나면 **수업 AI 도우미 - 로컬 API 키 삭제** 바로가기를 클릭합니다. 암호화된 키 파일이 삭제되고, 해당 키로 열린 로컬 서버가 연결을 종료합니다. 바로가기 없이 삭제하려면 같은 명령의 `-Choice 3`을 사용합니다. OpenAI 계정에서 키를 폐기하려면 OpenAI Platform에서 해당 키를 폐기해야 합니다.
 
 자료 읽기 입력란을 클릭하고 스크린샷을 붙여넣은 뒤 **분석 시작**을 누르세요.
+
+## 다른 PC에서 발표하기
+
+Vercel에서 GitHub 저장소 `aqurius-code/class-ai-helper`를 가져오고 Framework Preset은 **Other**를 선택합니다. Production 환경에 다음 두 비밀 환경변수를 등록한 뒤 배포합니다.
+
+- `OPENAI_API_KEY` — 발표용 OpenAI 프로젝트 키
+- `DEMO_PASSWORD` — AI 기능을 열 때 쓸 별도의 길고 고유한 발표용 비밀번호
+
+발표 PC에서는 Vercel 배포 주소를 열고 AI 기능을 처음 사용할 때 발표용 비밀번호를 입력합니다. OpenAI 키는 Vercel 서버에만 보관됩니다.
+
+발표 후에는 OpenAI Platform에서 발표용 키를 폐기하고 Vercel 환경변수에서 제거합니다. 기존 Vercel 배포에는 배포 당시의 환경변수가 남을 수 있으므로, 환경변수 제거 후 다시 배포합니다.
